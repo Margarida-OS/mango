@@ -1,0 +1,78 @@
+# Maintainer: Denys Madureira <denys@margarida-os.dev>
+#
+# VCS-style package built from git. It ships the Margarida-OS patches on top
+# of upstream mangowm and replaces the official "mangowm" package because both
+# install the same files (/usr/bin/mango, /etc/mango/config.*, session entry).
+#
+# pkgver tracks the current commit (0.18.2 + 2 patches => 0.18.2.r2.gcc950d2)
+# and is frozen here so the package can be built without renewal.
+
+pkgname=modular-mango
+_pkgname=mango
+pkgver=0.18.2.r2.gcc950d2
+pkgrel=1
+pkgdesc='mangowm with Margarida-OS patches (Wayland compositor)'
+arch=('x86_64')
+url='https://github.com/Margarida-OS/mango'
+license=('GPL-3.0-or-later')
+depends=(
+  'cairo'
+  'glib2'
+  'glibc'
+  'libdisplay-info'
+  'libdrm'
+  'libinput'
+  'libliftoff'
+  'libxcb'
+  'libxkbcommon'
+  'pango'
+  'pcre2'
+  'pixman'
+  'seatd'
+  'wayland'
+  'wayland-protocols'
+  'wlroots0.20'
+  'scenefx'
+  'xcb-util-wm'
+  'xorg-xwayland'
+)
+makedepends=(
+  'cjson'
+  'git'
+  'libxcb'
+  'meson'
+  'ninja'
+  'scenefx'
+  'wlroots0.20'
+  'xcb-util-wm'
+)
+provides=('mangowm')
+conflicts=('mangowm' 'mango-git' 'modular-mango-git')
+replaces=('mangowm')
+backup=('etc/mango/config.conf' 'etc/mango/config.toml')
+options=('!debug')
+_pkgsrc="$_pkgname/pkgbuild"
+source=("$_pkgsrc::git+${url}.git")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd "$_pkgsrc"
+  git describe --long --tags | sed 's/\([^-]*-g\)/r\1/;s/-/./g'
+}
+
+build() {
+  cd "$_pkgsrc"
+  meson setup build \
+    --prefix=/usr \
+    --buildtype=release \
+    --wrap-mode=nodownload \
+    -Dxwayland=enabled \
+    -Dasan=false
+  meson compile -C build
+}
+
+package() {
+  cd "$_pkgsrc"
+  meson install -C build --destdir "$pkgdir"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

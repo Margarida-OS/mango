@@ -1,0 +1,8 @@
+etc/mango usr/share/doc/modular-mango/examples/
+usr/bin
+usr/lib/systemd/user
+usr/share/man
+usr/share/wayland-sessions
+usr/share/xdg-desktop-portal
+assets/mango.png usr/share/pixmaps
+LICENSE usr/share/doc/modular-mango/copyright

@@ -1,0 +1,49 @@
+Source: modular-mango
+Section: x11
+Priority: optional
+Maintainer: Denys Madureira <denys@margarida-os.dev>
+Build-Depends: debhelper-compat (= 13),
+               libcairo2-dev,
+               libcjson-dev,
+               libdisplay-info-dev,
+               libdrm-dev,
+               libinput-dev,
+               libliftoff-dev,
+               libpango1.0-dev,
+               libpcre2-dev,
+               libpixman-1-dev,
+               libscenefx-0.5-dev,
+               libseat-dev,
+               libwayland-bin,
+               libwayland-dev,
+               libwlroots-0.20-dev (>= 0.20.0),
+               libxcb-icccm4-dev,
+               libxcb-randr0-dev,
+               libxcb1-dev,
+               libxkbcommon-dev,
+               libx11-dev,
+               meson (>= 1.1.0),
+               ninja-build,
+               pkg-config,
+               wayland-protocols (>= 1.41)
+Standards-Version: 4.7.0
+Rules-Requires-Root: no
+Homepage: https://github.com/Margarida-OS/mango
+
+Package: modular-mango
+Architecture: any
+Provides: mangowm
+Conflicts: mangowm
+Replaces: mangowm
+Depends: ${misc:Depends},
+         ${shlibs:Depends},
+         wayland-protocols,
+         xorg-xwayland
+Description: mangowm with Margarida-OS patches (Wayland compositor)
+ A tiling Wayland compositor based on wlroots and scenefx, with the
+ patches carried by the Margarida-OS fork (hidden fullscreen mirroring
+ in a movable corner, _NET_WM_WINDOW_OPACITY for hidden X11 containers).
+ .
+ The build requires libwlroots-0.20-dev and libscenefx-0.5-dev, which
+ are only available in Debian unstable (forky). The resulting binary
+ runs on Debian testing once those runtime libraries are present.

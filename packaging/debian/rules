@@ -1,0 +1,21 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+	meson setup debian/build \
+		--prefix=/usr \
+		--buildtype=plain \
+		--wrap-mode=nodownload \
+		-Dxwayland=enabled \
+		-Dasan=false
+
+override_dh_auto_build:
+	ninja -C debian/build
+
+override_dh_auto_install:
+	DESTDIR=$(CURDIR)/debian/tmp ninja -C debian/build install
+
+override_dh_installdocs:
+	dh_installdocs --all README.md
