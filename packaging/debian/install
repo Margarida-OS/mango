@@ -4,5 +4,5 @@ usr/lib/systemd/user
 usr/share/man
 usr/share/wayland-sessions
 usr/share/xdg-desktop-portal
-assets/mango.png usr/share/pixmaps
+assets/mango.svg usr/share/pixmaps
 LICENSE usr/share/doc/modular-mango/copyright
