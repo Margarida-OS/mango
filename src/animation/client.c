@@ -136,10 +136,19 @@ int32_t is_special_animation_rule(Client *c) {
 }
 
 void set_overview_enter_animation(Client *c) {
-	struct wlr_box start = c->overview_backup_geom;
-	if (start.width <= 0 || start.height <= 0)
-		start = c->animation.current;
-	c->animainit_geom = start;
+	if (client_gesture_driven(c)) {
+		struct wlr_box start = c->overview_backup_geom;
+		if (start.width <= 0 || start.height <= 0)
+			start = c->animation.current;
+		c->animainit_geom = start;
+		return;
+	}
+
+	struct wlr_box geo = c->geom;
+	c->animainit_geom.width = geo.width * 1.2;
+	c->animainit_geom.height = geo.height * 1.2;
+	c->animainit_geom.x = geo.x + (geo.width - c->animainit_geom.width) / 2;
+	c->animainit_geom.y = geo.y + (geo.height - c->animainit_geom.height) / 2;
 }
 
 void set_client_open_animation(Client *c, struct wlr_box geo) {
@@ -218,12 +227,6 @@ void set_client_open_animation(Client *c, struct wlr_box geo) {
 	}
 }
 
-void snap_scene_buffer_apply_effect(struct wlr_scene_buffer *buffer, int32_t sx,
-									int32_t sy, void *data) {
-	BufferData *buffer_data = (BufferData *)data;
-	wlr_scene_buffer_set_dest_size(buffer, buffer_data->width,
-								   buffer_data->height);
-}
 void scene_buffer_apply_effect(struct wlr_scene_buffer *buffer, int32_t sx,
 							   int32_t sy, void *data) {
 	BufferData *buffer_data = (BufferData *)data;
@@ -576,7 +579,7 @@ void client_draw_dim(Client *c, struct ivec2 clip_box) {
 }
 
 void client_draw_blur(Client *c, struct ivec2 clip_box) {
-	if (c->isfullscreen) {
+	if (c->isfullscreen && !client_uses_transparent_rendering(c)) {
 		if (c->blur->node.enabled)
 			wlr_scene_node_set_enabled(&c->blur->node, false);
 		return;
@@ -1206,14 +1209,10 @@ void fadeout_client_animation_next_tick(Client *c) {
 		wlr_scene_node_for_each_buffer(&c->scene->node,
 									   scene_buffer_apply_opacity, &opacity);
 
-	if (client_close_animation_type(c) == ANIM_TYPE_ZOOM) {
-		BufferData buffer_data;
-		buffer_data.width = width;
-		buffer_data.height = height;
-		buffer_data.width_scale = animation_passed;
-		buffer_data.height_scale = animation_passed;
-		wlr_scene_node_for_each_buffer(
-			&c->scene->node, snap_scene_buffer_apply_effect, &buffer_data);
+	if (c->mon) {
+		bool scaling = client_close_animation_type(c) == ANIM_TYPE_ZOOM;
+		scene_snapshot_clip_to_box(c->scene, &c->mon->m, scaling, width,
+								   height);
 	}
 
 	if (animation_passed >= 1.0) {
@@ -1289,7 +1288,7 @@ void client_animation_next_tick(Client *c) {
 	}
 }
 void init_fadeout_client(Client *c) {
-	if (!c->mon || client_is_unmanaged(c))
+	if (!c->mon || c->mon->iscleanuping || client_is_unmanaged(c))
 		return;
 
 	if (!c->scene)
@@ -1648,9 +1647,17 @@ void resize(Client *c, struct wlr_box geo, ResizeOpts opts) {
 
 	if (!opts.skip_ov_enter_anim && c->mon->isoverview &&
 		c->animation.overining && !c->animation.overview_enter_anim_set) {
-		set_overview_enter_animation(c);
-		c->animation.overining = false;
-		c->animation.overview_enter_anim_set = true;
+		if (client_gesture_driven(c)) {
+			set_overview_enter_animation(c);
+			c->animation.overining = false;
+			c->animation.overview_enter_anim_set = true;
+		} else {
+			c->animation.overining = false;
+			if (c != c->mon->sel && c->animation.action == OVERVIEW) {
+				c->animation.overview_enter_anim_set = true;
+				set_overview_enter_animation(c);
+			}
+		}
 	}
 
 	client_set_pending_state(c);

@@ -462,9 +462,16 @@ struct wlr_output_mode *get_nearest_output_mode(struct wlr_output *output,
 }
 
 void enable_adaptive_sync(Monitor *m, struct wlr_output_state *state) {
+	if (m->vrr_enable_failed) {
+		wlr_output_state_set_adaptive_sync_enabled(state, false);
+		return;
+	}
+
 	wlr_output_state_set_adaptive_sync_enabled(state, true);
 	if (!wlr_output_test_state(m->wlr_output, state)) {
 		wlr_output_state_set_adaptive_sync_enabled(state, false);
+		m->is_vrr_enabling = false;
+		m->vrr_enable_failed = true;
 		mango_error(true, WLR_DEBUG,
 					"failed to enable adaptive sync for output %s",
 					m->wlr_output->name);
@@ -478,6 +485,7 @@ void enable_adaptive_sync(Monitor *m, struct wlr_output_state *state) {
 void disable_adaptive_sync(Monitor *m, struct wlr_output_state *state) {
 	wlr_output_state_set_adaptive_sync_enabled(state, false);
 	m->is_vrr_enabling = false;
+	m->vrr_enable_failed = false;
 }
 
 bool monitor_matches_rule(Monitor *m, const ConfigMonitorRule *rule) {
@@ -566,6 +574,7 @@ void monitor_set_icc(Monitor *m, const char *path) {
 bool apply_rule_to_state(Monitor *m, const ConfigMonitorRule *rule,
 						 struct wlr_output_state *state) {
 	bool mode_set = false;
+	m->vrr_enable_failed = false;
 	m->vrr_global_enable = rule->vrr >= 0 ? rule->vrr : 0;
 	m->hdr_enable = rule->hdr >= 0 ? rule->hdr : 0;
 	m->prefer_disable = rule->disable >= 0 ? rule->disable : 0;
@@ -643,6 +652,7 @@ void handle_new_output(struct wl_listener *listener, void *data) {
 	m->carousel_anim_dir = 0;
 	m->vrr_global_enable = false;
 	m->is_vrr_enabling = false;
+	m->vrr_enable_failed = false;
 	m->hdr_enable = false;
 	m->prefer_disable = false;
 	m->is_hdr_enabling = false;
@@ -864,6 +874,24 @@ void handle_output_destroy(struct wl_listener *listener, void *data) {
 	uint32_t i;
 
 	m->iscleanuping = true;
+
+	Client *c, *ctmp;
+	wl_list_for_each_safe(c, ctmp, &server.fadeout_clients, fadeout_link) {
+		if (c->mon != m) {
+			continue;
+		}
+		wl_list_remove(&c->fadeout_link);
+		wlr_scene_node_destroy(&c->scene->node);
+		free(c);
+	}
+	wl_list_for_each_safe(l, tmp, &server.fadeout_layers, fadeout_link) {
+		if (l->mon != m) {
+			continue;
+		}
+		wl_list_remove(&l->fadeout_link);
+		wlr_scene_node_destroy(&l->scene->node);
+		free(l);
+	}
 
 	/* m->layers[i] are intentionally not unlinked */
 	for (i = 0; i < LENGTH(m->layers); i++) {
@@ -1238,6 +1266,7 @@ void output_manager_apply_or_test(struct wlr_output_configuration_v1 *config,
 		wlr_output_state_set_transform(&state, config_head->state.transform);
 		wlr_output_state_set_scale(&state, config_head->state.scale);
 
+		m->vrr_enable_failed = false;
 		if (config_head->state.adaptive_sync_enabled) {
 			enable_adaptive_sync(m, &state);
 		} else {
@@ -1403,13 +1432,14 @@ void check_vrr_enable(Client *c) {
 		return;
 
 	if (VISIBLEON(c, c->mon) && c->vrr_only_fullscreen && c->isfullscreen &&
-		!c->mon->is_vrr_enabling) {
+		!c->mon->is_vrr_enabling && !c->mon->vrr_enable_failed) {
 		enable_adaptive_sync(c->mon, &m->pending);
 		mango_output_commit(m);
 		return;
 	}
 
-	if (!c->mon->is_vrr_enabling && c->mon->vrr_global_enable) {
+	if (!c->mon->is_vrr_enabling && c->mon->vrr_global_enable &&
+		!c->mon->vrr_enable_failed) {
 		enable_adaptive_sync(c->mon, &m->pending);
 		mango_output_commit(m);
 	} else if (c->mon->is_vrr_enabling && !c->mon->vrr_global_enable &&

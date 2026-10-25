@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://github.com/mangowm/mango/blob/main/assets/mango-transparency-256.png" alt="Mango Logo" width="120"/>
+  <img src="assets/mango.svg" alt="Mango Logo" width="120"/>
 
   <h1>Mango Wayland Compositor</h1>
 
@@ -47,6 +47,12 @@ Mango starts where dwl ends. It keeps the lightweight, fast-build philosophy whi
 **Practicality over novelty.** Features get added when they genuinely improve daily workflows — not for the sake of completeness.
 
 **Focused scope.** Niche requests are evaluated by community interest. Significant upvotes move things forward.
+
+## AI Policy
+
+- **Pull requests:** AI may be used to assist in preparing a pull request (PR), but direct AI-generated PRs are not accepted. Contributors must clearly understand what the code does, whether the implementation is reasonable and rigorous, whether it wastes resources, and whether the implementation is sufficiently convergent rather than scattered.
+
+- **Bug reports:** Using AI to report bugs is acceptable. AI-provided information may serve as reference material, which is preferable to reports that provide no reference information.
 
 ## Installation
 
