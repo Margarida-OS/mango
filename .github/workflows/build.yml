@@ -1,0 +1,100 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+      - 'chore/**'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  arch:
+    name: Arch Linux (Arch package)
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      - name: Install build dependencies
+        run: |
+          pacman -Syu --noconfirm --needed \
+            git meson ninja gcc pkgconf \
+            wlroots0.20 scenefx cjson \
+            libxcb xcb-util-wm wayland wayland-protocols \
+            libinput libdrm libxkbcommon pcre2 pango cairo \
+            pixman libdisplay-info libliftoff
+
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: |
+          meson setup build \
+            --prefix=/usr \
+            --buildtype=release \
+            --wrap-mode=nodownload \
+            -Dxwayland=enabled
+
+      - name: Compile
+        run: ninja -C build
+
+      - name: Package with makepkg
+        run: |
+          useradd -m builder
+          chown -R builder:builder "$GITHUB_WORKSPACE"
+          su builder -c 'cd packaging/arch/modular-mango && makepkg -f --noconfirm'
+          ls -l packaging/arch/modular-mango/*.pkg.tar.zst
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: modular-mango-arch
+          path: packaging/arch/modular-mango/*.pkg.tar.zst
+          if-no-files-found: error
+
+  debian:
+    name: Debian unstable (deb)
+    runs-on: ubuntu-latest
+    container: debian:sid
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      OUT_DIR: ${{ github.workspace }}/dist
+    steps:
+      # The official debian:sid image only ships a deb822 sources file; the
+      # deb-src entry is what apt-get build-dep needs.
+      - name: Enable source packages
+        run: |
+          echo "deb-src http://deb.debian.org/debian sid main" \
+            >> /etc/apt/sources.list.d/debian.sources
+          apt-get update
+          apt-get install -y --no-install-recommends git ca-certificates
+
+      - uses: actions/checkout@v4
+
+      # packaging/debian/build.sh runs dpkg-buildpackage in a nested container,
+      # which needs a Docker socket this job does not have. Build directly
+      # here instead: the outputs are the same.
+      - name: Build the deb
+        run: |
+          apt-get install -y --no-install-recommends \
+            build-essential dpkg-dev debhelper devscripts fakeroot \
+            ninja-build meson pkgconf
+          bash packaging/debian/generate-changelog.sh
+          mkdir -p debian
+          cp -a packaging/debian/. debian/
+          apt-get build-dep -y .
+          dpkg-buildpackage -us -uc -b -d
+          mkdir -p "$OUT_DIR"
+          cp ../modular-mango_*_*.deb "$OUT_DIR"/
+          ls -l "$OUT_DIR"
+
+      - name: Upload deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: modular-mango-deb
+          path: dist/modular-mango_*.deb
+          if-no-files-found: error

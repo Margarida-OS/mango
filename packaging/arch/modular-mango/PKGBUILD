@@ -4,8 +4,9 @@
 # of upstream mangowm and replaces the official "mangowm" package because both
 # install the same files (/usr/bin/mango, /etc/mango/config.*, session entry).
 #
-# pkgver tracks the current commit (0.18.2 + 2 patches => 0.18.2.r2.gcc950d2)
-# and is frozen here so the package can be built without renewal.
+# _tag pins the release the package is built from. Releases are cut with
+# v<upstream>-margarida.<n> tags, so pkgver keeps the upstream part first
+# (v0.18.3-margarida.1 => 0.18.3.r0.g<hash>).
 
 pkgname=modular-mango
 _pkgname=mango
@@ -51,13 +52,22 @@ conflicts=('mangowm' 'mango-git' 'modular-mango-git')
 replaces=('mangowm')
 backup=('etc/mango/config.conf' 'etc/mango/config.toml')
 options=('!debug')
+_tag='v0.18.3-margarida.1'
 _pkgsrc="$_pkgname/pkgbuild"
-source=("$_pkgsrc::git+${url}.git")
+source=("$_pkgsrc::git+${url}.git#tag=${_tag}")
 sha256sums=('SKIP')
 
 pkgver() {
   cd "$_pkgsrc"
-  git describe --long --tags | sed 's/\([^-]*-g\)/r\1/;s/-/./g'
+  local upstream=${_tag#v}
+  upstream=${upstream%%-margarida.*}
+  local margarida=${_tag##*-margarida.}
+  local base hash count
+  base=$(git describe --tags --match 'v[0-9]*-margarida.*' --abbrev=0)
+  hash=$(git rev-parse --short HEAD)
+  count=$(git rev-list --count "${base}..HEAD")
+
+  printf '%s.m%s.r%s.g%s\n' "$upstream" "$margarida" "$count" "$hash"
 }
 
 build() {
