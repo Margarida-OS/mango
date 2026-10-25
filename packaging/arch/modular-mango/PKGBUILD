@@ -53,21 +53,20 @@ replaces=('mangowm')
 backup=('etc/mango/config.conf' 'etc/mango/config.toml')
 options=('!debug')
 _tag='v0.18.3-margarida.1'
-_pkgsrc="$_pkgname/pkgbuild"
-source=("$_pkgsrc::git+${url}.git#tag=${_tag}")
+_pkgsrc="$_pkgname"
+source=("$_pkgname"::"git+${url}.git#tag=${_tag}")
 sha256sums=('SKIP')
 
 pkgver() {
   cd "$_pkgsrc"
-  local upstream=${_tag#v}
-  upstream=${upstream%%-margarida.*}
-  local margarida=${_tag##*-margarida.}
-  local base hash count
-  base=$(git describe --tags --match 'v[0-9]*-margarida.*' --abbrev=0)
+  # Tag hyphens are not separators: v0.18.3-margarida.1 stays one component,
+  # so 0.18.3 still sorts first against the upstream package.
+  local tag count hash
+  tag=$(git describe --tags --abbrev=0 | sed 's/^v//')
+  count=$(git describe --long --tags | sed 's/^.*-\([0-9]*\)-g[0-9a-f]*$/\1/')
   hash=$(git rev-parse --short HEAD)
-  count=$(git rev-list --count "${base}..HEAD")
 
-  printf '%s.m%s.r%s.g%s\n' "$upstream" "$margarida" "$count" "$hash"
+  printf '%s.r%s.g%s\n' "$tag" "$count" "$hash"
 }
 
 build() {

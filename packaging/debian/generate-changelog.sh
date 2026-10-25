@@ -8,7 +8,9 @@ set -euo pipefail
 repo=$(git rev-parse --show-toplevel)
 cd "$repo"
 
-version=$(git describe --tags --abbrev=0 | sed 's/^v//')
+# CI checkouts do not always fetch tags; fall back to the version in meson.build.
+version=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || true)
+version=${version:-$(sed -n "s/^  version : '\(.*\)',/\1/p" meson.build)}
 commit=$(git rev-parse --short HEAD)
 date=$(date -R)
 changes=("Snapshot of ${version} plus the Margarida-OS patches (tree ${commit}).")
