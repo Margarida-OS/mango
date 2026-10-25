@@ -29,6 +29,11 @@ jobs:
             libinput libdrm libxkbcommon pcre2 pango cairo \
             pixman libdisplay-info libliftoff
 
+      # The container starts as root while the checked-out tree belongs to the
+      # runner user, so git refuses to read it before any checkout runs.
+      - name: Trust the workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - uses: actions/checkout@v4
 
       - name: Configure
@@ -46,7 +51,9 @@ jobs:
         run: |
           useradd -m builder
           chown -R builder:builder "$GITHUB_WORKSPACE"
-          su builder -c 'cd packaging/arch/modular-mango && makepkg -f --noconfirm'
+          # Runtime dependencies are installed in the image, not by pacman in a
+          # container without sudo, so the check is skipped here.
+          su builder -c 'cd packaging/arch/modular-mango && makepkg -f --nodeps --noconfirm'
           ls -l packaging/arch/modular-mango/*.pkg.tar.zst
 
       - name: Upload package
@@ -72,6 +79,8 @@ jobs:
             >> /etc/apt/sources.list.d/debian.sources
           apt-get update
           apt-get install -y --no-install-recommends git ca-certificates
+          # git-clean refuses repositories owned by another uid.
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - uses: actions/checkout@v4
 
