@@ -59,10 +59,10 @@ sha256sums=('SKIP')
 
 pkgver() {
   cd "$_pkgsrc"
-  # Tag hyphens are not separators: v0.18.3-margarida.1 stays one component,
-  # so 0.18.3 still sorts first against the upstream package.
+  # pkgver forbids hyphens, so v0.18.3-margarida.1 becomes
+  # 0.18.3.margarida.1.r<n>.g<hash>: the upstream version still sorts first.
   local tag count hash
-  tag=$(git describe --tags --abbrev=0 | sed 's/^v//')
+  tag=$(git describe --tags --abbrev=0 | sed 's/^v//;s/-/./g')
   count=$(git describe --long --tags | sed 's/^.*-\([0-9]*\)-g[0-9a-f]*$/\1/')
   hash=$(git rev-parse --short HEAD)
 
